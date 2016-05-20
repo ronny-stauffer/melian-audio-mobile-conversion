@@ -1,19 +1,78 @@
 #!/bin/bash
 
-for a in *.flac; do
-  # give output correct extension
-  OUTF="${a[@]/%flac/mp3}"
+OUTPUT_ROOT_DIRECTORY="/mnt/transfer/melian-audio-mobile-conversion"
 
-  # get the tags
-  ARTIST=$(metaflac "$a" --show-tag=ARTIST | sed s/.*=//g)
-  TITLE=$(metaflac "$a" --show-tag=TITLE | sed s/.*=//g)
-  ALBUM=$(metaflac "$a" --show-tag=ALBUM | sed s/.*=//g)
-  GENRE=$(metaflac "$a" --show-tag=GENRE | sed s/.*=//g)
-  TRACKNUMBER=$(metaflac "$a" --show-tag=TRACKNUMBER | sed s/.*=//g)
-  DATE=$(metaflac "$a" --show-tag=DATE | sed s/.*=//g)
+if [ ! -d $OUTPUT_ROOT_DIRECTORY ]; then
+	mkdir $OUTPUT_ROOT_DIRECTORY
+fi
 
-  # stream flac into the lame encoder
-  flac -c -d "$a" | lame -V0 --add-id3v2 --pad-id3v2 --ignore-tag-errors \
-    --ta "$ARTIST" --tt "$TITLE" --tl "$ALBUM"  --tg "${GENRE:-12}" \
-    --tn "${TRACKNUMBER:-0}" --ty "$DATE" - "/mnt/transfer/audio/1/2/4/$OUTF"
+# Select each *.flac file
+#for a in *.flac; do
+find . -name "*.flac" -type f -print0 | while read -d $'\0' a; do
+	echo "--------------------------------------------------------------------------------"
+
+	echo "Input File: $a"
+
+	FILE_BASE_NAME=$(basename "$a")
+
+	echo "File Base Name: $FILE_BASE_NAME"
+
+	# Get the tags (= metadata)
+	# --no-utf8-convert
+	DATE=$(metaflac "$a" --show-tag=DATE | sed s/.*=//g)
+	GENRE=$(metaflac "$a" --show-tag=GENRE | sed s/.*=//g)
+	ARTIST=$(metaflac "$a" --show-tag=ARTIST | sed s/.*=//g)
+	ALBUM=$(metaflac "$a" --show-tag=ALBUM | sed s/.*=//g)
+	TRACK_NUMBER=$(metaflac "$a" --show-tag=TRACKNUMBER | sed s/.*=//g)
+	TITLE=$(metaflac "$a" --show-tag=TITLE | sed s/.*=//g)
+
+	if [ -z "$GENRE" ] || [ -z "$ARTIST" ] || [ -z "$ALBUM" ]; then
+		echo "Incomplete tags! Skipping..."
+
+		continue
+	fi
+
+	echo "Genre: $GENRE"
+	echo "Artist: $ARTIST"
+	echo "Album: $ALBUM"
+	echo "Title: $TITLE"
+
+	GENRE2=$(metaflac "$a" --show-tag=GENRE --no-utf8-convert | sed s/.*=//g)
+	ARTIST2=$(metaflac "$a" --show-tag=ARTIST --no-utf8-convert | sed s/.*=//g)
+	ALBUM2=$(metaflac "$a" --show-tag=ALBUM --no-utf8-convert | sed s/.*=//g)
+
+	# Determine output directory and file path (and give output file the correct extension)
+	OUTPUT_FILE="$OUTPUT_ROOT_DIRECTORY/$GENRE2/$ARTIST2/$ALBUM2/${FILE_BASE_NAME[@]/%flac/mp3}"
+	OUTPUT_DIRECTORY=$(dirname "$OUTPUT_FILE")
+
+	echo "Output Directory: $OUTPUT_DIRECTORY"
+	echo "Output File: $OUTPUT_FILE"
+
+	if [ -f "$OUTPUT_FILE" ]; then
+		echo "Output file already exists! Skipping..."
+
+		continue
+	fi
+
+	# Create output directory
+	if [ ! -d "$OUTPUT_DIRECTORY" ]; then
+		mkdir -p "$OUTPUT_DIRECTORY"
+	fi
+
+	#GENRE3=$(echo $GENRE2 | iconv -f utf-8 -t ISO-8859-1)
+	#ARTIST3=$(echo $ARTIST2 | iconv -f utf-8 -t ISO-8859-1)
+	#ALBUM3=$(echo $ALBUM2 | iconv -f utf-8 -t ISO-8859-1)
+	#TITLE3=$(echo $TITLE2 | iconv -f utf-8 -t ISO-8859-1)
+
+	#echo "Artist 3: $ARTIST3"
+	#echo "Title 3: $TITLE3"
+
+	# Convert the input file to output file in MP3 format: Stream flac into the lame MP3 encoder
+	flac -d -c "$a" 2> /dev/null | lame -V0 --add-id3v2 --pad-id3v2 --ignore-tag-errors \
+		--ta "$ARTIST" --tt "$TITLE" --tl "$ALBUM" --tg "${GENRE2:-12}" \
+		--tn "${TRACK_NUMBER:-0}" --ty "$DATE" - "$OUTPUT_FILE" 2> /dev/null
+
+	#sleep 10
 done
+
+echo "--------------------------------------------------------------------------------"
