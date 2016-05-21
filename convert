@@ -19,15 +19,35 @@ find . -name "*.flac" -type f -print0 | while read -d $'\0' a; do
 
 	# Get the tags (= metadata)
 	# --no-utf8-convert
-	DATE=$(metaflac "$a" --show-tag=DATE | sed s/.*=//g)
-	GENRE=$(metaflac "$a" --show-tag=GENRE | sed s/.*=//g)
-	ARTIST=$(metaflac "$a" --show-tag=ARTIST | sed s/.*=//g)
-	ALBUM=$(metaflac "$a" --show-tag=ALBUM | sed s/.*=//g)
-	TRACK_NUMBER=$(metaflac "$a" --show-tag=TRACKNUMBER | sed s/.*=//g)
-	TITLE=$(metaflac "$a" --show-tag=TITLE | sed s/.*=//g)
+	DATE=$(metaflac "$a" --show-tag=DATE --no-utf8-convert | sed s/.*=//g)
+	GENRE=$(metaflac "$a" --show-tag=GENRE --no-utf8-convert | sed s/.*=//g)
+	ARTIST=$(metaflac "$a" --show-tag=ARTIST --no-utf8-convert | sed s/.*=//g)
+	ALBUM=$(metaflac "$a" --show-tag=ALBUM --no-utf8-convert | sed s/.*=//g)
+	TRACK_NUMBER=$(metaflac "$a" --show-tag=TRACKNUMBER --no-utf8-convert | sed s/.*=//g)
+	TITLE=$(metaflac "$a" --show-tag=TITLE --no-utf8-convert | sed s/.*=//g)
 
-	if [ -z "$GENRE" ] || [ -z "$ARTIST" ] || [ -z "$ALBUM" ]; then
-		echo "Incomplete tags! Skipping..."
+	#if [ -z "$GENRE" ] || [ -z "$ARTIST" ] || [ -z "$ALBUM" ]; then
+	#	echo "Incomplete tags! Skipping..."
+	#
+	#	continue
+	#fi
+	if [ -z "$GENRE" ]; then
+		echo "Unknown genre! Skipping..."
+
+		continue
+	fi
+	if [ -z "$ARTIST" ]; then
+		echo "Unknown artist! Skipping..."
+
+		continue
+	fi
+	if [ -z "$ALBUM" ]; then
+		echo "Unknown album! Skipping..."
+
+		continue
+	fi
+	if [ -z "$TITLE" ]; then
+		echo "Unknown title! Skipping..."
 
 		continue
 	fi
@@ -35,14 +55,26 @@ find . -name "*.flac" -type f -print0 | while read -d $'\0' a; do
 	echo "Genre: $GENRE"
 	echo "Artist: $ARTIST"
 	echo "Album: $ALBUM"
+	echo "Track Number: $TRACK_NUMBER"
 	echo "Title: $TITLE"
 
-	GENRE2=$(metaflac "$a" --show-tag=GENRE --no-utf8-convert | sed s/.*=//g)
-	ARTIST2=$(metaflac "$a" --show-tag=ARTIST --no-utf8-convert | sed s/.*=//g)
-	ALBUM2=$(metaflac "$a" --show-tag=ALBUM --no-utf8-convert | sed s/.*=//g)
+	GENRE_DIRECTORY=${GENRE/\//#}
+	ARTIST_DIRECTORY=${ARTIST/\//#}
+	ALBUM_DIRECTORY=${ALBUM/\//#}
+	TITLE_FILE_PART=${TITLE/\//#}
+
+	#echo "Genre Directory: $GENRE_DIRECTORY"
+	#echo "Artist Directory: $ARTIST_DIRECTORY"
+	#echo "Album Directory: $ALBUM_DIRECTORY"
+	#echo "Title File Name Part: $TITLE_FILE_PART"
 
 	# Determine output directory and file path (and give output file the correct extension)
-	OUTPUT_FILE="$OUTPUT_ROOT_DIRECTORY/$GENRE2/$ARTIST2/$ALBUM2/${FILE_BASE_NAME[@]/%flac/mp3}"
+	#OUTPUT_FILE="$OUTPUT_ROOT_DIRECTORY/$GENRE/$ARTIST/$ALBUM/${FILE_BASE_NAME[@]/%flac/mp3}"
+	if [ ! -z "$TRACK_NUMBER" ]; then
+		OUTPUT_FILE="$OUTPUT_ROOT_DIRECTORY/$GENRE_DIRECTORY/$ARTIST_DIRECTORY/$ALBUM_DIRECTORY/$TRACK_NUMBER. $TITLE_FILE_PART.mp3"
+	else
+		OUTPUT_FILE="$OUTPUT_ROOT_DIRECTORY/$GENRE_DIRECTORY/$ARTIST_DIRECTORY/$ALBUM_DIRECTORY/$TITLE_FILE_PART.mp3"
+	fi
 	OUTPUT_DIRECTORY=$(dirname "$OUTPUT_FILE")
 
 	echo "Output Directory: $OUTPUT_DIRECTORY"
@@ -59,18 +91,17 @@ find . -name "*.flac" -type f -print0 | while read -d $'\0' a; do
 		mkdir -p "$OUTPUT_DIRECTORY"
 	fi
 
-	#GENRE3=$(echo $GENRE2 | iconv -f utf-8 -t ISO-8859-1)
-	#ARTIST3=$(echo $ARTIST2 | iconv -f utf-8 -t ISO-8859-1)
-	#ALBUM3=$(echo $ALBUM2 | iconv -f utf-8 -t ISO-8859-1)
-	#TITLE3=$(echo $TITLE2 | iconv -f utf-8 -t ISO-8859-1)
-
-	#echo "Artist 3: $ARTIST3"
-	#echo "Title 3: $TITLE3"
-
 	# Convert the input file to output file in MP3 format: Stream flac into the lame MP3 encoder
-	flac -d -c "$a" 2> /dev/null | lame -V0 --add-id3v2 --pad-id3v2 --ignore-tag-errors \
-		--ta "$ARTIST" --tt "$TITLE" --tl "$ALBUM" --tg "${GENRE2:-12}" \
-		--tn "${TRACK_NUMBER:-0}" --ty "$DATE" - "$OUTPUT_FILE" 2> /dev/null
+	echo "Converting..."
+
+	#-V0
+	#--id3v2-utf16
+	flac -d -c "$a" 2> /dev/null | lame \
+		--id3v2-only --pad-id3v2 --id3v2-utf16 --ignore-tag-errors \
+		--ty "$DATE" --tg "${GENRE:-12}" --ta "$ARTIST" --tl "$ALBUM" --tn "${TRACK_NUMBER:-0}" --tt "$TITLE" \
+		- "$OUTPUT_FILE" 2> /dev/null
+
+	echo "...done."
 
 	#sleep 10
 done
