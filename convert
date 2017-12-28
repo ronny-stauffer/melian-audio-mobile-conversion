@@ -37,9 +37,11 @@ find . -name "*.flac" -type f -print0 | while read -d $'\0' a; do
 		continue
 	fi
 	if [ -z "$ARTIST" ]; then
-		echo "Unknown artist! Skipping..."
+		#echo "Unknown artist! Skipping..."
+		
+		ARTIST=-
 
-		continue
+		#continue
 	fi
 	if [ -z "$ALBUM" ]; then
 		echo "Unknown album! Skipping..."
