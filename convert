@@ -60,10 +60,10 @@ find . -name "*.flac" -type f -print0 | while read -d $'\0' a; do
 	echo "Track Number: $TRACK_NUMBER"
 	echo "Title: $TITLE"
 
-	GENRE_DIRECTORY=${GENRE/\//#}
-	ARTIST_DIRECTORY=${ARTIST/\//#}
-	ALBUM_DIRECTORY=${ALBUM/\//#}
-	TITLE_FILE_PART=${TITLE/\//#}
+	GENRE_DIRECTORY=${GENRE/[\/:\\]/#}
+	ARTIST_DIRECTORY=${ARTIST/[\/:\\]/#}
+	ALBUM_DIRECTORY=${ALBUM/[\/:\\]/#}
+	TITLE_FILE_PART=${TITLE/[\/:\\]/#}
 
 	#echo "Genre Directory: $GENRE_DIRECTORY"
 	#echo "Artist Directory: $ARTIST_DIRECTORY"
